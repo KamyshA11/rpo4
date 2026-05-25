@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: transport-app
+    ports:
+      - "8888:8888"
+    volumes:
+      - app-data:/app
+    environment:
+      - DB_PATH=/app/transport.db
+      - PORT=8080
+    restart: unless-stopped
+
+volumes:
+  app-data:
