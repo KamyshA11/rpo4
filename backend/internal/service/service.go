@@ -198,3 +198,8 @@ func (s *Service) AuthorizeTransaction(cardNumber string, amount int64, terminal
 func (s *Service) GetKeysForTerminal() ([]models.Key, error) {
 	return s.repo.GetAllKeys()
 }
+
+// GetCardByNumber returns card by its number
+func (s *Service) GetCardByNumber(number string) (*models.Card, error) {
+	return s.repo.GetCardByNumber(number)
+}

@@ -6,7 +6,7 @@ import (
 	"lab3/internal/service"
 	"net/http"
 	"strconv"
-
+	"time"
 	"github.com/gin-gonic/gin"
 )
 
@@ -932,4 +932,50 @@ func (h *Handler) DeleteKey(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// GetCardByNumber godoc
+// @Summary Get card by number
+// @Param number path string true "Card number"
+// @Router /cards/by-number/{number} [get]
+func (h *Handler) GetCardByNumber(c *gin.Context) {
+    number := c.Param("number")
+    card, err := h.svc.GetCardByNumber(number)
+    if err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "card not found"})
+        return
+    }
+    c.JSON(http.StatusOK, card)
+}
+
+// RechargeCard godoc
+// @Router /terminals/recharge [post]
+func (h *Handler) RechargeCard(c *gin.Context) {
+    var req struct {
+        CardNumber string `json:"card_number"`
+        Amount     int64  `json:"amount"`
+    }
+    if err := c.ShouldBindJSON(&req); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    card, err := h.svc.GetCardByNumber(req.CardNumber)
+    if err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "card not found"})
+        return
+    }
+
+    tx := &models.Transaction{
+        Amount:     req.Amount,
+        CardID:     card.ID,
+        TerminalID: 0, // специальный ID для пополнения (можно 0 или создать отдельный терминал)
+        CreatedAt:  time.Now(),
+    }
+
+    if err := h.svc.CreateTransaction(tx); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+        return
+    }
+    c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
