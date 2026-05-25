@@ -37,6 +37,11 @@ class TerminalScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(20.0),
                 child: Text(provider.lastMessage!, style: TextStyle(color: provider.lastSuccess ? Colors.green : Colors.red)),
               ),
+            if (provider.cardUid != null)
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Text('Card UID: ${provider.cardUid}', style: TextStyle(fontSize: 12)),
+                ),
           ],
         ),
       ),

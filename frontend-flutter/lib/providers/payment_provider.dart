@@ -11,6 +11,8 @@ class PaymentProvider extends ChangeNotifier {
   String? lastMessage;
   bool lastSuccess = false;
 
+  String? cardUid;
+
   Future<void> pay(BuildContext context) async {
     isProcessing = true;
     lastMessage = null;
@@ -52,6 +54,8 @@ class PaymentProvider extends ChangeNotifier {
       // Для простоты используем UID как номер карты. У вас может быть другое соответствие.
       await api.authorizeTransaction(uid, 50, 1); // terminalId = 1
       _setSuccess('Payment successful! New balance: ${newBalance} RUB');
+      cardUid = uid;
+      notifyListeners();
     } catch (e) {
       _setError('Error: $e');
     } finally {
@@ -69,5 +73,27 @@ class PaymentProvider extends ChangeNotifier {
   void _setSuccess(String msg) {
     lastMessage = msg;
     lastSuccess = true;
+  }
+
+  Future<void> loadBalance() async {
+    isWaiting = true;
+    notifyListeners();
+    final uid = await nfc.detectCardUID();  // используйте метод подруги
+    if (uid != null) {
+      const key = 'FFFFFFFFFFFF';  // замените на реальный ключ карты
+      final balance = await nfc.readBalance(uid, key, 4);
+      if (balance != null) {
+        lastMessage = 'Balance: ${balance} RUB';
+        lastSuccess = true;
+      } else {
+        lastMessage = 'Failed to read balance';
+        lastSuccess = false;
+      }
+    } else {
+      lastMessage = 'No card detected';
+      lastSuccess = false;
+    }
+    isWaiting = false;
+    notifyListeners();
   }
 }
