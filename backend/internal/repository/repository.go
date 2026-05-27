@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"lab3/internal/models"
 )
 
@@ -128,6 +129,16 @@ func (r *Repository) GetAllCards() ([]models.Card, error) {
 }
 
 func (r *Repository) CreateCard(c *models.Card) error {
+	// Проверяем, существует ли уже карта с таким номером
+	var existingID int64
+	err := r.db.QueryRow("SELECT id FROM cards WHERE number = ?", c.Number).Scan(&existingID)
+	if err == nil {
+		return errors.New("card with this number already exists")
+	}
+	if err != sql.ErrNoRows {
+		return err
+	}
+
 	result, err := r.db.Exec("INSERT INTO cards (number, balance, blocked, owner_name, key_id) VALUES (?, ?, ?, ?, ?)",
 		c.Number, c.Balance, c.Blocked, c.OwnerName, c.KeyID)
 	if err != nil {
@@ -139,9 +150,19 @@ func (r *Repository) CreateCard(c *models.Card) error {
 }
 
 func (r *Repository) UpdateCard(c *models.Card) error {
-	_, err := r.db.Exec("UPDATE cards SET number = ?, balance = ?, blocked = ?, owner_name = ?, key_id = ? WHERE id = ?",
-		c.Number, c.Balance, c.Blocked, c.OwnerName, c.KeyID, c.ID)
-	return err
+    // Проверяем, что новый номер не принадлежит другой карте
+    var existingID int64
+    err := r.db.QueryRow("SELECT id FROM cards WHERE number = ? AND id != ?", c.Number, c.ID).Scan(&existingID)
+    if err == nil {
+        return errors.New("another card with this number already exists")
+    }
+    if err != sql.ErrNoRows {
+        return err
+    }
+
+    _, err = r.db.Exec("UPDATE cards SET number = ?, balance = ?, blocked = ?, owner_name = ?, key_id = ? WHERE id = ?",
+        c.Number, c.Balance, c.Blocked, c.OwnerName, c.KeyID, c.ID)
+    return err
 }
 
 func (r *Repository) DeleteCard(id int64) error {
@@ -289,27 +310,27 @@ func (r *Repository) DeleteKey(id int64) error {
 
 // GetCardByUID — теперь ищет по полю number
 func (r *Repository) GetCardByUID(uid string) (*models.Card, error) {
-    row := r.db.QueryRow("SELECT id, number, balance, blocked, owner_name, key_id FROM cards WHERE number = ?", uid)
-    var c models.Card
-    var blocked int
-    err := row.Scan(&c.ID, &c.Number, &c.Balance, &blocked, &c.OwnerName, &c.KeyID)
-    if err != nil {
-        return nil, err
-    }
-    c.Blocked = blocked != 0
-    return &c, nil
+	row := r.db.QueryRow("SELECT id, number, balance, blocked, owner_name, key_id FROM cards WHERE number = ?", uid)
+	var c models.Card
+	var blocked int
+	err := row.Scan(&c.ID, &c.Number, &c.Balance, &blocked, &c.OwnerName, &c.KeyID)
+	if err != nil {
+		return nil, err
+	}
+	c.Blocked = blocked != 0
+	return &c, nil
 }
 
 // CreateCardWithUID — создаёт карту с number = uid
 func (r *Repository) CreateCardWithUID(c *models.Card) error {
-    result, err := r.db.Exec(`
+	result, err := r.db.Exec(`
         INSERT INTO cards (number, balance, blocked, owner_name, key_id) 
         VALUES (?, ?, ?, ?, ?)`,
-        c.Number, c.Balance, c.Blocked, c.OwnerName, c.KeyID)
-    if err != nil {
-        return err
-    }
-    id, _ := result.LastInsertId()
-    c.ID = id
-    return nil
+		c.Number, c.Balance, c.Blocked, c.OwnerName, c.KeyID)
+	if err != nil {
+		return err
+	}
+	id, _ := result.LastInsertId()
+	c.ID = id
+	return nil
 }

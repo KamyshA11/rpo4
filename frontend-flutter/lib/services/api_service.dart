@@ -76,7 +76,7 @@ class ApiService {
   // Регистрация новой карты
   Future<Map<String, dynamic>> registerCard(String uid, String ownerName, int initialBalance) async {
     final response = await _dio.post('/cards/register', data: {
-      'uid': uid,
+      'number': uid,
       'owner_name': ownerName,
       'balance': initialBalance,
     });
@@ -88,7 +88,7 @@ class ApiService {
   // Оплата (создание транзакции) — используем эндпоинт /cards/debit
   Future<void> pay(String uid, int amount, int terminalId) async {
     final response = await _dio.post('/cards/debit', data: {
-      'uid': uid,
+      'number': uid,
       'amount': amount,
       'terminal_id': terminalId,
     });
@@ -98,7 +98,7 @@ class ApiService {
   // Пополнение (создание транзакции) — используем эндпоинт /cards/recharge
   Future<void> rechargeCard(String uid, int amount) async {
     final response = await _dio.post('/cards/recharge', data: {
-      'uid': uid,
+      'number': uid,
       'amount': amount,
     });
     print('Recharge response: ${response.data}');
@@ -108,7 +108,7 @@ class ApiService {
   Future<void> syncBalance(String uid, int balance) async {
     try {
       final response = await _dio.put('/cards/sync-balance', data: {
-        'uid': uid,
+        'number': uid,
         'balance': balance,
       });
       print('Sync balance response: ${response.data}');

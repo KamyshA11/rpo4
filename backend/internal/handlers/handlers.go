@@ -427,15 +427,8 @@ func (h *Handler) CreateCard(c *gin.Context) {
 		return
 	}
 
-	// Проверяем, нет ли уже карты с таким номером
-	existing, _ := h.svc.GetCardByNumber(req.Number)
-	if existing != nil {
-		c.JSON(http.StatusConflict, gin.H{"error": "card with this number already exists"})
-		return
-	}
-
 	card := &models.Card{
-		Number:    req.Number, // ←直接用 req.Number
+		Number:    req.Number,
 		Balance:   req.Balance,
 		Blocked:   req.Blocked,
 		OwnerName: req.OwnerName,
@@ -443,6 +436,15 @@ func (h *Handler) CreateCard(c *gin.Context) {
 	}
 
 	if err := h.svc.CreateCard(card); err != nil {
+		// Проверяем, ошибка ли это дубликата
+		if err.Error() == "card with this number already exists" {
+			c.JSON(http.StatusConflict, models.ErrorResponse{
+				Error:   "DUPLICATE_CARD",
+				Message: "Карта с таким номером уже существует",
+				Status:  http.StatusConflict,
+			})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, models.ErrorResponse{
 			Error:   "CREATION_FAILED",
 			Message: err.Error(),
@@ -502,6 +504,7 @@ func (h *Handler) UpdateCard(c *gin.Context) {
 		return
 	}
 
+	// Проверяем, существует ли карта
 	_, err = h.svc.GetCardByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, models.ErrorResponse{
@@ -512,9 +515,22 @@ func (h *Handler) UpdateCard(c *gin.Context) {
 		return
 	}
 
+	// Проверяем, не занят ли новый номер другой картой
+	if req.Number != "" {
+		existing, _ := h.svc.GetCardByNumber(req.Number)
+		if existing != nil && existing.ID != id {
+			c.JSON(http.StatusConflict, models.ErrorResponse{
+				Error:   "DUPLICATE_NUMBER",
+				Message: "Card with this number already exists",
+				Status:  http.StatusConflict,
+			})
+			return
+		}
+	}
+
 	card := &models.Card{
 		ID:        id,
-		Number:    req.UID,
+		Number:    req.Number,
 		Balance:   req.Balance,
 		Blocked:   req.Blocked,
 		OwnerName: req.OwnerName,
@@ -960,7 +976,7 @@ func (h *Handler) GetCardByNumber(c *gin.Context) {
 // @Router /cards/register [post]
 func (h *Handler) RegisterCard(c *gin.Context) {
 	var req struct {
-		Number    string `json:"number"` // ← было uid
+		Number    string `json:"number"`
 		OwnerName string `json:"owner_name"`
 		Balance   int64  `json:"balance"`
 	}
@@ -969,14 +985,22 @@ func (h *Handler) RegisterCard(c *gin.Context) {
 		return
 	}
 
-	existing, _ := h.svc.GetCardByNumber(req.Number)
+	// Определяем, какое поле использовать для номера карты
+	cardNumber := req.Number
+	if cardNumber == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "either number or uid is required"})
+		return
+	}
+
+	// Проверяем, не существует ли уже карта с таким номером
+	existing, _ := h.svc.GetCardByNumber(cardNumber)
 	if existing != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": "card with this number already exists"})
 		return
 	}
 
 	card := &models.Card{
-		Number:    req.Number,
+		Number:    cardNumber,
 		Balance:   req.Balance,
 		Blocked:   false,
 		OwnerName: req.OwnerName,
@@ -1076,7 +1100,7 @@ func (h *Handler) GetCardByUID(c *gin.Context) {
 // @Router /cards/sync-balance [put]
 func (h *Handler) SyncBalance(c *gin.Context) {
 	var req struct {
-		UID     string `json:"uid"`
+		Number  string `json:"number"`
 		Balance int64  `json:"balance"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -1084,7 +1108,7 @@ func (h *Handler) SyncBalance(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.SyncBalance(req.UID, req.Balance); err != nil {
+	if err := h.svc.SyncBalance(req.Number, req.Balance); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

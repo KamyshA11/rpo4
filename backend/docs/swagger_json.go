@@ -176,19 +176,20 @@ var SwaggerJSON = `{
             "type": "object",
             "required": ["number", "owner_name", "key_id"],
             "properties": {
-              "number": {"type": "string", "example": "1234567890", "minLength": 10, "maxLength": 20},
-              "balance": {"type": "integer", "example": 1000, "minimum": 0, "default": 0},
-              "blocked": {"type": "boolean", "example": false, "default": false},
-              "owner_name": {"type": "string", "example": "Ivan Ivanov", "maxLength": 255},
-              "key_id": {"type": "integer", "example": 1, "minimum": 1}
+              "number": {"type": "string", "example": "1DFC7D05"},
+              "balance": {"type": "integer", "example": 1000},
+              "blocked": {"type": "boolean", "example": false},
+              "owner_name": {"type": "string", "example": "Ivan Ivanov"},
+              "key_id": {"type": "integer", "example": 1}
             }
           }
         }],
         "responses": {
-          "201": {"description": "Created", "schema": {"$ref": "#/definitions/Card"}},
+          "201": {"description": "Created"},
           "400": {"description": "Invalid input"},
           "401": {"description": "Unauthorized"},
-          "403": {"description": "Forbidden - admin only"}
+          "403": {"description": "Forbidden - admin only"},
+          "409": {"description": "Card with this number already exists"}
         }
       }
     },
@@ -273,30 +274,27 @@ var SwaggerJSON = `{
     "/cards/register": {
       "post": {
         "tags": ["cards"],
-        "summary": "Register a new card by UID",
-        "description": "Creates a new card with UID",
+        "summary": "Register a new card",
+        "description": "Supports both 'number' and 'uid' fields for compatibility",
         "security": [{"BearerAuth": []}],
-        "consumes": ["application/json"],
-        "produces": ["application/json"],
         "parameters": [{
           "in": "body",
           "name": "body",
           "required": true,
           "schema": {
             "type": "object",
-            "required": ["uid", "owner_name"],
+            "required": ["owner_name"],
             "properties": {
-              "uid": {"type": "string", "example": "1DFC7D05", "description": "Card UID from NFC"},
-              "owner_name": {"type": "string", "example": "John Doe", "description": "Card owner name"},
-              "balance": {"type": "integer", "example": 500, "default": 0, "description": "Initial balance"}
+              "number": {"type": "string", "example": "1DFC7D05", "description": "Card number (UID)"},
+              "owner_name": {"type": "string", "example": "John Doe"},
+              "balance": {"type": "integer", "example": 500}
             }
           }
         }],
         "responses": {
-          "201": {"description": "Created", "schema": {"$ref": "#/definitions/Card"}},
+          "201": {"description": "Created"},
           "400": {"description": "Invalid input"},
-          "401": {"description": "Unauthorized"},
-          "409": {"description": "Card with this UID already exists"}
+          "409": {"description": "Card with this number already exists"}
         }
       }
     },
@@ -314,9 +312,9 @@ var SwaggerJSON = `{
           "required": true,
           "schema": {
             "type": "object",
-            "required": ["uid", "amount", "terminal_id"],
+            "required": ["number", "amount", "terminal_id"],
             "properties": {
-              "uid": {"type": "string", "example": "1DFC7D05", "description": "Card UID"},
+              "number": {"type": "string", "example": "1DFC7D05", "description": "Card UID"},
               "amount": {"type": "integer", "example": 50, "minimum": 1, "description": "Amount to debit"},
               "terminal_id": {"type": "integer", "example": 1, "description": "Terminal ID"}
             }
@@ -345,9 +343,9 @@ var SwaggerJSON = `{
           "required": true,
           "schema": {
             "type": "object",
-            "required": ["uid", "amount"],
+            "required": ["number", "amount"],
             "properties": {
-              "uid": {"type": "string", "example": "1DFC7D05", "description": "Card UID"},
+              "number": {"type": "string", "example": "1DFC7D05", "description": "Card UID"},
               "amount": {"type": "integer", "example": 100, "minimum": 1, "description": "Amount to recharge"}
             }
           }
@@ -374,9 +372,9 @@ var SwaggerJSON = `{
           "required": true,
           "schema": {
             "type": "object",
-            "required": ["uid", "balance"],
+            "required": ["number", "balance"],
             "properties": {
-              "uid": {"type": "string", "example": "1DFC7D05", "description": "Card UID"},
+              "number": {"type": "string", "example": "1DFC7D05", "description": "Card UID"},
               "balance": {"type": "integer", "example": 450, "description": "New balance"}
             }
           }

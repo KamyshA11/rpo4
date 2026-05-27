@@ -47,13 +47,12 @@ type CreateCardRequest struct {
 }
 
 type UpdateCardRequest struct {
-	UID       string `json:"uid" binding:"required"`
-	Balance   int64  `json:"balance"`
-	Blocked   bool   `json:"blocked"`
-	OwnerName string `json:"owner_name" binding:"required"`
-	KeyID     int64  `json:"key_id"`
+    Number    string `json:"number" binding:"required"`
+    Balance   int64  `json:"balance"`
+    Blocked   bool   `json:"blocked"`
+    OwnerName string `json:"owner_name" binding:"required"`
+    KeyID     int64  `json:"key_id" binding:"required"`
 }
-
 type Terminal struct {
 	ID      int64  `json:"id"`
 	Serial  string `json:"serial"`
