@@ -21,9 +21,8 @@ class NfcService {
     return _comPort;
   }
 
-  // ---- Чтение UID карты ----
   Future<String?> detectCardUID({int maxAttempts = 30}) async {
-    _log.info('Waiting for card...');
+    _log.info('Starting card detection...');
     
     _cachedComPort ??= await _findComPort();
     if (_cachedComPort == null) {
@@ -48,26 +47,23 @@ class NfcService {
             return uid;
           }
         }
-        await Future.delayed(Duration(seconds: 1));
+        await Future.delayed(Duration(milliseconds: 800));
       } catch (e) {
         _log.warning('NFC error: $e');
+        await Future.delayed(Duration(milliseconds: 500));
       }
     }
+    _log.warning('No card detected after $maxAttempts attempts');
     return null;
   }
 
-  // ---- Чтение баланса через дамп-файл (используем r a u) ----
   Future<int?> readBalance(String uid, {int block = 4, String key = 'FFFFFFFFFFFF'}) async {
     _log.info('Reading balance from card UID: $uid');
     
     _cachedComPort ??= await _findComPort();
-    if (_cachedComPort == null) {
-      _log.severe('❌ COM port not configured');
-      return null;
-    }
+    if (_cachedComPort == null) return null;
     
     try {
-      // Используем команду r a u для создания дампа
       final tempFile = File('${(await getTemporaryDirectory()).path}/card_dump_${DateTime.now().millisecondsSinceEpoch}.bin');
       
       final result = await Process.run(
@@ -106,20 +102,16 @@ class NfcService {
     }
   }
 
-  // ---- Запись баланса (используем команду w a u) ----
   Future<bool> writeBalance(String uid, int newBalance, {int block = 4, String key = 'FFFFFFFFFFFF'}) async {
     _log.info('Writing balance $newBalance to card UID: $uid');
     
     _cachedComPort ??= await _findComPort();
-    if (_cachedComPort == null) {
-      _log.severe('❌ COM port not configured');
-      return false;
-    }
+    if (_cachedComPort == null) return false;
     
     try {
       final tempFile = File('${(await getTemporaryDirectory()).path}/card_dump_${DateTime.now().millisecondsSinceEpoch}.bin');
       
-      // 1. Читаем текущий дамп карты
+      // Читаем текущий дамп карты
       final readResult = await Process.run(
         _nfcMfClassicPath,
         ['r', 'a', 'u', tempFile.path],
@@ -137,7 +129,7 @@ class NfcService {
         return false;
       }
       
-      // 2. Модифицируем баланс в дампе
+      // Модифицируем баланс в дампе
       final bytes = await tempFile.readAsBytes();
       final start = block * 16;
       bytes[start] = newBalance & 0xFF;
@@ -146,7 +138,7 @@ class NfcService {
       bytes[start + 3] = (newBalance >> 24) & 0xFF;
       await tempFile.writeAsBytes(bytes);
       
-      // 3. Записываем дамп обратно на карту (команда w a u)
+      // Записываем дамп обратно на карту
       final writeResult = await Process.run(
         _nfcMfClassicPath,
         ['w', 'a', 'u', tempFile.path],

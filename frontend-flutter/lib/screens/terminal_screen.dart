@@ -31,23 +31,67 @@ class TerminalScreen extends StatelessWidget {
                 style: const TextStyle(fontSize: 18, color: Colors.green),
               ),
               const SizedBox(height: 40),
-              if (provider.isWaiting)
-                const Column(
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Place your card on reader...'),
-                  ],
+              
+              // Статус и прогресс
+              if (provider.statusMessage.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          if (provider.statusMessage.contains('✅'))
+                            const Icon(Icons.check_circle, color: Colors.green)
+                          else if (provider.statusMessage.contains('❌'))
+                            const Icon(Icons.error, color: Colors.red)
+                          else if (provider.statusMessage.contains('💳') || 
+                                   provider.statusMessage.contains('📖') || 
+                                   provider.statusMessage.contains('✍️'))
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else
+                            const Icon(Icons.info, color: Colors.blue),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              provider.statusMessage,
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (provider.progress > 0 && provider.progress < 100) ...[
+                        const SizedBox(height: 12),
+                        LinearProgressIndicator(value: provider.progress / 100),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${provider.progress.toInt()}%',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
-              if (!provider.isWaiting)
+                const SizedBox(height: 20),
+              ],
+              
+              if (!provider.isProcessing)
                 ElevatedButton(
-                  onPressed: provider.isProcessing ? null : () => provider.pay(context),
+                  onPressed: () => provider.pay(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
                   ),
                   child: const Text('Pay 50 RUB', style: TextStyle(fontSize: 20, color: Colors.white)),
                 ),
+              
               if (provider.lastMessage != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 20),
