@@ -10,52 +10,233 @@ class RechargeScreen extends StatelessWidget {
     final provider = context.watch<RechargeProvider>();
     
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Recharge Card'),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            Text(
-              'Current balance: ${provider.balance} RUB',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: provider.amountController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Amount (RUB)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            if (provider.isWaiting)
-              const CircularProgressIndicator()
-            else
-              ElevatedButton(
-                onPressed: provider.isProcessing ? null : () => provider.recharge(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                ),
-                child: const Text('Recharge', style: TextStyle(fontSize: 18, color: Colors.white)),
-              ),
-            if (provider.lastMessage != null)
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.green.shade800,
+              Colors.green.shade500,
+              Colors.teal.shade300,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // App Bar
               Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: Text(
-                  provider.lastMessage!,
-                  style: TextStyle(
-                    color: provider.lastSuccess ? Colors.green : Colors.red,
-                    fontSize: 16,
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    ),
+                    const Spacer(),
+                    const Text(
+                      'Пополнение карты',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+              ),
+              
+              // Баланс карты
+              Container(
+                margin: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      'Текущий баланс',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${provider.balance} ₽',
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Поле ввода суммы
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                child: TextField(
+                  controller: provider.amountController,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(fontSize: 18, color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Сумма пополнения (₽)',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.5),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(color: Colors.white, width: 2),
+                    ),
+                    prefixIcon: const Icon(Icons.currency_ruble, color: Colors.white),
                   ),
                 ),
               ),
-          ],
+              
+              const Spacer(),
+              
+              // Индикатор процесса
+              if (provider.statusMessage.isNotEmpty)
+                Container(
+                  margin: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          if (provider.statusMessage.contains('✅'))
+                            const Icon(Icons.check_circle, color: Colors.green, size: 28)
+                          else if (provider.statusMessage.contains('❌'))
+                            const Icon(Icons.error, color: Colors.red, size: 28)
+                          else if (provider.statusMessage.contains('💳') || 
+                                   provider.statusMessage.contains('📖') || 
+                                   provider.statusMessage.contains('✍️'))
+                            const SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                            )
+                          else
+                            const Icon(Icons.info, color: Colors.blue, size: 28),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Text(
+                              provider.statusMessage,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (provider.progress > 0 && provider.progress < 100) ...[
+                        const SizedBox(height: 16),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: provider.progress / 100,
+                            minHeight: 8,
+                            backgroundColor: Colors.grey.shade200,
+                            color: Colors.green,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${provider.progress.toInt()}%',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              
+              // Кнопка пополнения
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  child: ElevatedButton(
+                    onPressed: provider.isProcessing ? null : () => provider.recharge(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.green.shade800,
+                      minimumSize: const Size(double.infinity, 60),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 5,
+                    ),
+                    child: provider.isProcessing
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.green,
+                            ),
+                          )
+                        : const Text(
+                            'Пополнить',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              
+              // Сообщение об ошибке/успехе
+              if (provider.lastMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: (provider.lastSuccess ? Colors.green : Colors.red).withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      provider.lastMessage!,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
