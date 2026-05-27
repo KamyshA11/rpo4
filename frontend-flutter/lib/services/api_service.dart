@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,14 +8,19 @@ class ApiService {
   ApiService() {
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        if (_token != null) options.headers['Authorization'] = 'Bearer $_token';
+        if (_token != null) {
+          options.headers['Authorization'] = 'Bearer $_token';
+        }
         return handler.next(options);
       },
     ));
   }
 
   Future<void> login(String username, String password) async {
-    final response = await _dio.post('/auth/login', data: {'login': username, 'password': password});
+    final response = await _dio.post('/auth/login', data: {
+      'login': username,
+      'password': password,
+    });
     _token = response.data['token'];
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', _token!);
