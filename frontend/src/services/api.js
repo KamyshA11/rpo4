@@ -24,6 +24,7 @@ const headers = () => {
   return h;
 };
 
+// ==================== AUTH API ====================
 export const authApi = {
   login: async (login, password) => {
     const response = await fetch(`${API_URL}/auth/login`, {
@@ -60,6 +61,7 @@ export const authApi = {
   },
 };
 
+// ==================== USERS API ====================
 export const usersApi = {
   list: async () => {
     const response = await fetch(`${API_URL}/users`, { headers: headers() });
@@ -98,6 +100,7 @@ export const usersApi = {
   },
 };
 
+// ==================== CARDS API ====================
 export const cardsApi = {
   list: async () => {
     const response = await fetch(`${API_URL}/cards`, { headers: headers() });
@@ -134,8 +137,16 @@ export const cardsApi = {
     });
     return handleResponse(response);
   },
+
+  getByUid: async (uid) => {
+    const response = await fetch(`${API_URL}/cards/by-uid/${uid}`, { 
+      headers: headers() 
+    });
+    return handleResponse(response);
+  },
 };
 
+// ==================== TERMINALS API ====================
 export const terminalsApi = {
   list: async () => {
     const response = await fetch(`${API_URL}/terminals`, { headers: headers() });
@@ -188,6 +199,7 @@ export const terminalsApi = {
   },
 };
 
+// ==================== TRANSACTIONS API ====================
 export const transactionsApi = {
   list: async () => {
     const response = await fetch(`${API_URL}/transactions`, { headers: headers() });
@@ -204,6 +216,7 @@ export const transactionsApi = {
   },
 };
 
+// ==================== KEYS API ====================
 export const keysApi = {
   list: async () => {
     const response = await fetch(`${API_URL}/keys`, { headers: headers() });

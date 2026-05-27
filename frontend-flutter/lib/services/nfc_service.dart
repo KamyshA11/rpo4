@@ -43,8 +43,9 @@ class NfcService {
           final output = result.stdout as String;
           final uid = _parseUid(output);
           if (uid != null) {
-            _log.info('✅ Card detected! UID: $uid');
-            return uid;
+            final cleanedUid = uid.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '').trim();
+            _log.info('✅ Card detected! UID: $cleanedUid');
+            return cleanedUid;
           }
         }
         await Future.delayed(Duration(milliseconds: 800));
@@ -168,7 +169,11 @@ class NfcService {
         final match = RegExp(r'UID \(NFCID1\):\s*([A-F0-9\s]+)', caseSensitive: false)
             .firstMatch(line);
         if (match != null) {
-          return match.group(1)?.replaceAll(' ', '');
+          // Убираем пробелы и все непечатаемые символы
+          String uid = match.group(1)?.replaceAll(' ', '') ?? '';
+          // Очищаем от символов \r, \n, \t и других управляющих кодов
+          uid = uid.replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '');
+          return uid.trim();
         }
       }
     }

@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import '../services/nfc_service.dart';
 import '../services/storage_service.dart';
+import '../services/api_service.dart';
 import 'package:logging/logging.dart';
 
 class RechargeProvider extends ChangeNotifier {
   final Logger _log = Logger('RechargeProvider');
   final NfcService nfc = NfcService();
   final StorageService storage = StorageService();
+  final ApiService api = ApiService();  // <-- добавить
   final TextEditingController amountController = TextEditingController();
   
   bool isProcessing = false;
   String? lastMessage;
   bool lastSuccess = false;
   
-  // Новые поля для статуса и прогресса
   String _statusMessage = '';
   double _progress = 0;
   
   int _currentBalance = 0;
   String? _currentCardUid;
 
-  // Геттеры
   int get balance => _currentBalance;
   String? get cardUid => _currentCardUid;
   String get statusMessage => _statusMessage;
@@ -54,18 +54,16 @@ class RechargeProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Шаг 1: Поиск устройства
       _updateStatus('🔍 Поиск NFC устройства...', progressValue: 10);
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // Шаг 2: Ожидание карты
       _updateStatus('💳 Приложите карту к считывателю...', progressValue: 20);
       
       final uid = await nfc.detectCardUID(maxAttempts: 20);
       
       if (uid == null) {
         _updateStatus('❌ Карта не обнаружена', progressValue: 0);
-        _setError('Карта не обнаружена. Пожалуйста, попробуйте ещё раз');
+        _setError('Карта не обнаружена');
         return;
       }
       
@@ -73,32 +71,30 @@ class RechargeProvider extends ChangeNotifier {
       _updateStatus('✅ Карта обнаружена! UID: $uid', progressValue: 40);
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // Шаг 3: Чтение баланса
       _updateStatus('📖 Чтение текущего баланса...', progressValue: 50);
       
-      int? balance;
+      int? currentBalance;
       int readAttempts = 0;
-      while (balance == null && readAttempts < 3) {
+      while (currentBalance == null && readAttempts < 3) {
         readAttempts++;
         _updateStatus('📖 Попытка чтения $readAttempts/3...', progressValue: 50 + (readAttempts * 5));
-        balance = await nfc.readBalance(uid);
-        if (balance == null && readAttempts < 3) {
+        currentBalance = await nfc.readBalance(uid);
+        if (currentBalance == null && readAttempts < 3) {
           await Future.delayed(const Duration(milliseconds: 500));
         }
       }
       
-      if (balance == null) {
+      if (currentBalance == null) {
         _updateStatus('❌ Не удалось прочитать баланс', progressValue: 0);
-        _setError('Не удалось прочитать баланс. Пожалуйста, попробуйте ещё раз');
+        _setError('Не удалось прочитать баланс');
         return;
       }
       
-      _currentBalance = balance;
-      _updateStatus('💰 Текущий баланс: $balance ₽', progressValue: 65);
+      _currentBalance = currentBalance;
+      _updateStatus('💰 Текущий баланс: $currentBalance ₽', progressValue: 65);
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // Шаг 4: Запись нового баланса
-      final newBalance = balance + amount;
+      final newBalance = currentBalance + amount;
       _updateStatus('✍️ Запись нового баланса ($newBalance ₽) на карту...', progressValue: 75);
       
       bool writeSuccess = false;
@@ -114,13 +110,13 @@ class RechargeProvider extends ChangeNotifier {
       
       if (!writeSuccess) {
         _updateStatus('❌ Не удалось записать данные на карту', progressValue: 0);
-        _setError('Не удалось записать новый баланс. Пожалуйста, попробуйте ещё раз');
+        _setError('Не удалось записать новый баланс');
         return;
       }
       
       _currentBalance = newBalance;
       
-      // Шаг 5: Сохранение транзакции
+      // Сохраняем транзакцию в локальное хранилище
       _updateStatus('💾 Сохранение транзакции...', progressValue: 90);
       await storage.addTransaction(
         cardUid: uid,
@@ -131,11 +127,20 @@ class RechargeProvider extends ChangeNotifier {
       );
       await storage.updateBalance(uid, newBalance);
       
+      // ОТПРАВКА НА БЭКЕНД (логирование пополнения)
+      _updateStatus('📡 Отправка данных на сервер...', progressValue: 95);
+      try {
+        await api.rechargeCard(uid, amount);
+        _log.info('Recharge sent to backend');
+      } catch (e) {
+        _log.warning('Failed to send to backend: $e');
+        // Не прерываем операцию
+      }
+      
       _updateStatus('✅ Пополнение успешно завершено!', progressValue: 100);
       _setSuccess('Пополнение успешно завершено!\nНовый баланс: $newBalance ₽');
       amountController.clear();
       
-      // Сброс прогресса через 3 секунды
       await Future.delayed(const Duration(seconds: 3));
       _updateStatus('', progressValue: 0);
       

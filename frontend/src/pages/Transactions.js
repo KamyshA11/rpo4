@@ -78,9 +78,11 @@ function Transactions() {
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Транзакции</h2>
-        <Button variant="primary" onClick={() => setShowModal(true)}>
-          Создать транзакцию
-        </Button>
+        {isAdmin && (
+          <Button variant="primary" onClick={() => setShowModal(true)}>
+            Создать транзакцию
+          </Button>
+        )}
       </div>
 
       <InputGroup className="mb-3" style={{ maxWidth: 200 }}>
@@ -97,26 +99,28 @@ function Transactions() {
         <thead>
           <tr>
             <th>ID</th>
-            <th>ID карты</th>
+            <th>Карта (UID)</th>
             <th>ID терминала</th>
             <th>Сумма</th>
             <th>Дата</th>
           </tr>
         </thead>
         <tbody>
-          {filteredTransactions.length === 0 ? (
-            <tr><td colSpan="5" className="text-center text-muted">Нет транзакций</td></tr>
-          ) : (
-            filteredTransactions.map(tx => (
+          {filteredTransactions.map(tx => {
+            const card = cards.find(c => c.id === tx.card_id);
+            return (
               <tr key={tx.id}>
                 <td>{tx.id}</td>
-                <td>{tx.card_id}</td>
+                <td>
+                  {card ? card.number : tx.card_id}
+                  {card && <small className="text-muted d-block">ID: {card.id}</small>}
+                </td>
                 <td>{tx.terminal_id}</td>
                 <td>{tx.amount}</td>
                 <td>{tx.created_at ? new Date(tx.created_at).toLocaleString() : '-'}</td>
               </tr>
-            ))
-          )}
+            );
+          })}
         </tbody>
       </Table>
 
@@ -135,7 +139,7 @@ function Transactions() {
               >
                 <option value="">Выберите карту</option>
                 {cards.filter(c => !c.blocked).map(c => (
-                  <option key={c.id} value={c.id}>{c.number} ({c.balance} руб., {c.owner_name})</option>
+                  <option key={c.id} value={c.id}>{c.uid || c.number} ({c.balance} руб., {c.owner_name})</option>
                 ))}
               </Form.Select>
             </Form.Group>

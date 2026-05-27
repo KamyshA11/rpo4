@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import '../services/nfc_service.dart';
 import '../services/storage_service.dart';
+import '../services/api_service.dart';
 import 'package:logging/logging.dart';
 
 class BalanceProvider extends ChangeNotifier {
   final Logger _log = Logger('BalanceProvider');
   final NfcService nfc = NfcService();
   final StorageService storage = StorageService();
+  final ApiService api = ApiService();  // <-- добавить
   
   bool isChecking = false;
   int _balance = 0;
@@ -29,7 +31,6 @@ class BalanceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Ожидание карты
       _statusMessage = '💳 Приложите карту к считывателю...';
       notifyListeners();
       
@@ -40,7 +41,7 @@ class BalanceProvider extends ChangeNotifier {
         _balance = 0;
         _cardUid = null;
         notifyListeners();
-        await Future.delayed(Duration(seconds: 2));
+        await Future.delayed(const Duration(seconds: 2));
         _statusMessage = '';
         notifyListeners();
         return;
@@ -50,14 +51,13 @@ class BalanceProvider extends ChangeNotifier {
       _statusMessage = '📖 Чтение баланса...';
       notifyListeners();
       
-      // Чтение баланса
       final balance = await nfc.readBalance(uid);
       
       if (balance == null) {
         _statusMessage = '❌ Не удалось прочитать баланс';
         _balance = 0;
         notifyListeners();
-        await Future.delayed(Duration(seconds: 2));
+        await Future.delayed(const Duration(seconds: 2));
         _statusMessage = '';
         notifyListeners();
         return;
@@ -67,10 +67,18 @@ class BalanceProvider extends ChangeNotifier {
       _statusMessage = '✅ Баланс успешно считан!';
       notifyListeners();
       
-      // Сохраняем в хранилище
+      // Сохраняем в локальное хранилище
       await storage.updateBalance(uid, balance);
       
-      await Future.delayed(Duration(seconds: 2));
+      // ОТПРАВКА НА БЭКЕНД (синхронизация баланса)
+      try {
+        await api.syncBalance(uid, balance);
+        _log.info('Balance synced with backend');
+      } catch (e) {
+        _log.warning('Failed to sync balance: $e');
+      }
+      
+      await Future.delayed(const Duration(seconds: 2));
       _statusMessage = '';
       notifyListeners();
       
@@ -78,7 +86,7 @@ class BalanceProvider extends ChangeNotifier {
       _statusMessage = '❌ Ошибка: $e';
       _balance = 0;
       notifyListeners();
-      await Future.delayed(Duration(seconds: 2));
+      await Future.delayed(const Duration(seconds: 2));
       _statusMessage = '';
       notifyListeners();
     } finally {

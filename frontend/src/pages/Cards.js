@@ -7,7 +7,13 @@ function Cards() {
   const [keys, setKeys] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingCard, setEditingCard] = useState(null);
-  const [formData, setFormData] = useState({ number: '', balance: 0, blocked: false, owner_name: '', key_id: '' });
+  const [formData, setFormData] = useState({ 
+    number: '', 
+    balance: 0, 
+    blocked: false, 
+    owner_name: '', 
+    key_id: '' 
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchId, setSearchId] = useState('');
@@ -75,7 +81,7 @@ function Cards() {
   const openEdit = (card) => {
     setEditingCard(card);
     setFormData({ 
-      number: card.number, 
+      number: card.number || '', 
       balance: card.balance, 
       blocked: card.blocked,
       owner_name: card.owner_name || '',
@@ -111,7 +117,7 @@ function Cards() {
         <thead>
           <tr>
             <th>ID</th>
-            <th>Номер карты</th>
+            <th>Номер карты (UID)</th>
             <th>Баланс</th>
             <th>Владелец</th>
             <th>Заблокирована</th>
@@ -146,13 +152,17 @@ function Cards() {
         <Form onSubmit={handleSubmit}>
           <Modal.Body>
             <Form.Group className="mb-3">
-              <Form.Label>Номер карты</Form.Label>
+              <Form.Label>Номер карты (UID)</Form.Label>
               <Form.Control
                 type="text"
                 value={formData.number}
-                onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, number: e.target.value.toUpperCase() })}
+                placeholder="Например: 1DFC7D05"
                 required
               />
+              <Form.Text className="text-muted">
+                UID карты, полученный при считывании (8 hex-символов)
+              </Form.Text>
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Баланс</Form.Label>

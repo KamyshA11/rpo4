@@ -7,7 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Cards from './pages/Cards';
 import Terminals from './pages/Terminals';
-import Transactions from './pages/Transactions';
+import Transactions from './pages/Transactions';  // ← нормально, Transactions экспортируется как default?
 import Keys from './pages/Keys';
 
 const ProtectedRoute = ({ children, adminOnly = false }) => {

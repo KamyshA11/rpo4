@@ -203,3 +203,22 @@ func (s *Service) GetKeysForTerminal() ([]models.Key, error) {
 func (s *Service) GetCardByNumber(number string) (*models.Card, error) {
 	return s.repo.GetCardByNumber(number)
 }
+
+// GetCardByUID returns card by its UID
+func (s *Service) GetCardByUID(uid string) (*models.Card, error) {
+	return s.repo.GetCardByUID(uid)
+}
+
+// RegisterCard creates a new card with UID
+func (s *Service) RegisterCard(card *models.Card) error {
+	return s.repo.CreateCardWithUID(card)
+}
+
+// SyncBalance updates card balance in DB (for synchronization)
+func (s *Service) SyncBalance(uid string, balance int64) error {
+	card, err := s.repo.GetCardByUID(uid)
+	if err != nil {
+		return err
+	}
+	return s.repo.UpdateBalance(card.ID, balance)
+}

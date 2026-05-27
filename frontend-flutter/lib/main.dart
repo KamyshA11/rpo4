@@ -50,7 +50,6 @@ class MyApp extends StatelessWidget {
         title: 'Transport Terminal',
         theme: ThemeData(
           primarySwatch: Colors.blue,
-          fontFamily: 'Montserrat', // можно добавить свой шрифт
           useMaterial3: true,
         ),
         home: const HomeScreen(),

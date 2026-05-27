@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -426,8 +427,15 @@ func (h *Handler) CreateCard(c *gin.Context) {
 		return
 	}
 
+	// Проверяем, нет ли уже карты с таким номером
+	existing, _ := h.svc.GetCardByNumber(req.Number)
+	if existing != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "card with this number already exists"})
+		return
+	}
+
 	card := &models.Card{
-		Number:    req.Number,
+		Number:    req.Number, // ←直接用 req.Number
 		Balance:   req.Balance,
 		Blocked:   req.Blocked,
 		OwnerName: req.OwnerName,
@@ -506,7 +514,7 @@ func (h *Handler) UpdateCard(c *gin.Context) {
 
 	card := &models.Card{
 		ID:        id,
-		Number:    req.Number,
+		Number:    req.UID,
 		Balance:   req.Balance,
 		Blocked:   req.Blocked,
 		OwnerName: req.OwnerName,
@@ -939,43 +947,146 @@ func (h *Handler) DeleteKey(c *gin.Context) {
 // @Param number path string true "Card number"
 // @Router /cards/by-number/{number} [get]
 func (h *Handler) GetCardByNumber(c *gin.Context) {
-    number := c.Param("number")
-    card, err := h.svc.GetCardByNumber(number)
-    if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "card not found"})
-        return
-    }
-    c.JSON(http.StatusOK, card)
+	number := c.Param("number")
+	card, err := h.svc.GetCardByNumber(number)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "card not found"})
+		return
+	}
+	c.JSON(http.StatusOK, card)
+}
+
+// RegisterCard godoc
+// @Router /cards/register [post]
+func (h *Handler) RegisterCard(c *gin.Context) {
+	var req struct {
+		Number    string `json:"number"` // ← было uid
+		OwnerName string `json:"owner_name"`
+		Balance   int64  `json:"balance"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	existing, _ := h.svc.GetCardByNumber(req.Number)
+	if existing != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "card with this number already exists"})
+		return
+	}
+
+	card := &models.Card{
+		Number:    req.Number,
+		Balance:   req.Balance,
+		Blocked:   false,
+		OwnerName: req.OwnerName,
+		KeyID:     1,
+	}
+
+	if err := h.svc.RegisterCard(card); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, card)
+}
+
+// DebitCard godoc
+// @Router /cards/debit [post]
+func (h *Handler) DebitCard(c *gin.Context) {
+	var req struct {
+		Number     string `json:"number"` // ← было uid
+		Amount     int64  `json:"amount"`
+		TerminalID int64  `json:"terminal_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	card, err := h.svc.GetCardByNumber(req.Number)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "card not found"})
+		return
+	}
+
+	if card.Blocked {
+		c.JSON(http.StatusForbidden, gin.H{"error": "card blocked"})
+		return
+	}
+
+	tx := &models.Transaction{
+		Amount:     req.Amount,
+		CardID:     card.ID,
+		TerminalID: req.TerminalID,
+		CreatedAt:  time.Now(),
+	}
+
+	if err := h.svc.CreateTransaction(tx); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "approved"})
 }
 
 // RechargeCard godoc
-// @Router /terminals/recharge [post]
+// @Router /cards/recharge [post]
 func (h *Handler) RechargeCard(c *gin.Context) {
-    var req struct {
-        CardNumber string `json:"card_number"`
-        Amount     int64  `json:"amount"`
-    }
-    if err := c.ShouldBindJSON(&req); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
+	var req struct {
+		Number string `json:"number"` // ← было uid
+		Amount int64  `json:"amount"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
-    card, err := h.svc.GetCardByNumber(req.CardNumber)
-    if err != nil {
-        c.JSON(http.StatusNotFound, gin.H{"error": "card not found"})
-        return
-    }
+	card, err := h.svc.GetCardByUID(req.Number)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "card not found"})
+		return
+	}
 
-    tx := &models.Transaction{
-        Amount:     req.Amount,
-        CardID:     card.ID,
-        TerminalID: 0, // специальный ID для пополнения (можно 0 или создать отдельный терминал)
-        CreatedAt:  time.Now(),
-    }
+	tx := &models.Transaction{
+		Amount:     req.Amount,
+		CardID:     card.ID,
+		TerminalID: 0,
+		CreatedAt:  time.Now(),
+	}
 
-    if err := h.svc.CreateTransaction(tx); err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-    c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	if err := h.svc.CreateTransaction(tx); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
+}
+
+// GetCardByUID godoc
+// @Router /cards/by-uid/{uid} [get]
+func (h *Handler) GetCardByUID(c *gin.Context) {
+	number := c.Param("uid") // параметр в URL может остаться uid
+	card, err := h.svc.GetCardByNumber(number)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "card not found"})
+		return
+	}
+	c.JSON(http.StatusOK, card)
+}
+
+// SyncBalance godoc
+// @Router /cards/sync-balance [put]
+func (h *Handler) SyncBalance(c *gin.Context) {
+	var req struct {
+		UID     string `json:"uid"`
+		Balance int64  `json:"balance"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.SyncBalance(req.UID, req.Balance); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }

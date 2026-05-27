@@ -286,3 +286,30 @@ func (r *Repository) DeleteKey(id int64) error {
 	_, err := r.db.Exec("DELETE FROM keys WHERE id = ?", id)
 	return err
 }
+
+// GetCardByUID — теперь ищет по полю number
+func (r *Repository) GetCardByUID(uid string) (*models.Card, error) {
+    row := r.db.QueryRow("SELECT id, number, balance, blocked, owner_name, key_id FROM cards WHERE number = ?", uid)
+    var c models.Card
+    var blocked int
+    err := row.Scan(&c.ID, &c.Number, &c.Balance, &blocked, &c.OwnerName, &c.KeyID)
+    if err != nil {
+        return nil, err
+    }
+    c.Blocked = blocked != 0
+    return &c, nil
+}
+
+// CreateCardWithUID — создаёт карту с number = uid
+func (r *Repository) CreateCardWithUID(c *models.Card) error {
+    result, err := r.db.Exec(`
+        INSERT INTO cards (number, balance, blocked, owner_name, key_id) 
+        VALUES (?, ?, ?, ?, ?)`,
+        c.Number, c.Balance, c.Blocked, c.OwnerName, c.KeyID)
+    if err != nil {
+        return err
+    }
+    id, _ := result.LastInsertId()
+    c.ID = id
+    return nil
+}

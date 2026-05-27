@@ -120,7 +120,7 @@ var SwaggerJSON = `{
             "name": "body",
             "required": true,
             "schema": {
-				"type": "object",
+              "type": "object",
               "properties": {
                 "login": {"type": "string", "example": "new_login"},
                 "password": {"type": "string", "example": "new_password"},
@@ -223,7 +223,7 @@ var SwaggerJSON = `{
                 "number": {"type": "string", "example": "1234567890"},
                 "balance": {"type": "integer", "example": 1500, "minimum": 0},
                 "blocked": {"type": "boolean", "example": false},
-"owner_name": {"type": "string", "example": "Ivan Ivanov"},
+                "owner_name": {"type": "string", "example": "Ivan Ivanov"},
                 "key_id": {"type": "integer", "example": 1}
               }
             }
@@ -247,6 +247,144 @@ var SwaggerJSON = `{
           "204": {"description": "No Content"},
           "401": {"description": "Unauthorized"},
           "403": {"description": "Forbidden - admin only"},
+          "404": {"description": "Card not found"}
+        }
+      }
+    },
+    "/cards/by-uid/{uid}": {
+      "get": {
+        "tags": ["cards"],
+        "summary": "Get card by UID",
+        "security": [{"BearerAuth": []}],
+        "parameters": [{
+          "in": "path",
+          "name": "uid",
+          "required": true,
+          "type": "string",
+          "description": "Card UID (hex, e.g., 1DFC7D05)"
+        }],
+        "responses": {
+          "200": {"description": "OK", "schema": {"$ref": "#/definitions/Card"}},
+          "401": {"description": "Unauthorized"},
+          "404": {"description": "Card not found"}
+        }
+      }
+    },
+    "/cards/register": {
+      "post": {
+        "tags": ["cards"],
+        "summary": "Register a new card by UID",
+        "description": "Creates a new card with UID",
+        "security": [{"BearerAuth": []}],
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "body",
+          "name": "body",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "required": ["uid", "owner_name"],
+            "properties": {
+              "uid": {"type": "string", "example": "1DFC7D05", "description": "Card UID from NFC"},
+              "owner_name": {"type": "string", "example": "John Doe", "description": "Card owner name"},
+              "balance": {"type": "integer", "example": 500, "default": 0, "description": "Initial balance"}
+            }
+          }
+        }],
+        "responses": {
+          "201": {"description": "Created", "schema": {"$ref": "#/definitions/Card"}},
+          "400": {"description": "Invalid input"},
+          "401": {"description": "Unauthorized"},
+          "409": {"description": "Card with this UID already exists"}
+        }
+      }
+    },
+    "/cards/debit": {
+      "post": {
+        "tags": ["cards"],
+        "summary": "Debit money from card",
+        "description": "Creates a payment transaction (balance stored on card)",
+        "security": [{"BearerAuth": []}],
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "body",
+          "name": "body",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "required": ["uid", "amount", "terminal_id"],
+            "properties": {
+              "uid": {"type": "string", "example": "1DFC7D05", "description": "Card UID"},
+              "amount": {"type": "integer", "example": 50, "minimum": 1, "description": "Amount to debit"},
+              "terminal_id": {"type": "integer", "example": 1, "description": "Terminal ID"}
+            }
+          }
+        }],
+        "responses": {
+          "200": {"description": "OK", "schema": {"type": "object", "properties": {"status": {"type": "string"}}}},
+          "400": {"description": "Invalid input"},
+          "401": {"description": "Unauthorized"},
+          "403": {"description": "Card blocked"},
+          "404": {"description": "Card not found"}
+        }
+      }
+    },
+    "/cards/recharge": {
+      "post": {
+        "tags": ["cards"],
+        "summary": "Recharge card",
+        "description": "Creates a recharge transaction (balance stored on card)",
+        "security": [{"BearerAuth": []}],
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "body",
+          "name": "body",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "required": ["uid", "amount"],
+            "properties": {
+              "uid": {"type": "string", "example": "1DFC7D05", "description": "Card UID"},
+              "amount": {"type": "integer", "example": 100, "minimum": 1, "description": "Amount to recharge"}
+            }
+          }
+        }],
+        "responses": {
+          "200": {"description": "OK", "schema": {"type": "object", "properties": {"status": {"type": "string"}}}},
+          "400": {"description": "Invalid input"},
+          "401": {"description": "Unauthorized"},
+          "404": {"description": "Card not found"}
+        }
+      }
+    },
+    "/cards/sync-balance": {
+      "put": {
+        "tags": ["cards"],
+        "summary": "Sync card balance",
+        "description": "Updates card balance in database (for synchronization)",
+        "security": [{"BearerAuth": []}],
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "body",
+          "name": "body",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "required": ["uid", "balance"],
+            "properties": {
+              "uid": {"type": "string", "example": "1DFC7D05", "description": "Card UID"},
+              "balance": {"type": "integer", "example": 450, "description": "New balance"}
+            }
+          }
+        }],
+        "responses": {
+          "200": {"description": "OK", "schema": {"type": "object", "properties": {"status": {"type": "string"}}}},
+          "400": {"description": "Invalid input"},
+          "401": {"description": "Unauthorized"},
           "404": {"description": "Card not found"}
         }
       }
@@ -329,7 +467,7 @@ var SwaggerJSON = `{
           "200": {"description": "OK", "schema": {"$ref": "#/definitions/Terminal"}},
           "400": {"description": "Invalid input"},
           "401": {"description": "Unauthorized"},
-		"403": {"description": "Forbidden - admin only"},
+          "403": {"description": "Forbidden - admin only"},
           "404": {"description": "Terminal not found"}
         }
       },
@@ -440,7 +578,7 @@ var SwaggerJSON = `{
         "responses": {
           "201": {"description": "Created", "schema": {"$ref": "#/definitions/Transaction"}},
           "400": {"description": "Invalid input"},
-"401": {"description": "Unauthorized"},
+          "401": {"description": "Unauthorized"},
           "403": {"description": "Forbidden - admin only"}
         }
       }
@@ -551,13 +689,13 @@ var SwaggerJSON = `{
       "type": "object",
       "properties": {
         "id": {"type": "integer", "example": 1},
-        "number": {"type": "string", "example": "1234567890"},
+        "number": {"type": "string", "example": "1DFC7D05"},
         "balance": {"type": "integer", "example": 1000},
         "blocked": {"type": "boolean", "example": false},
         "owner_name": {"type": "string", "example": "Ivan Ivanov"},
         "key_id": {"type": "integer", "example": 1}
       }
-},
+    },
     "Terminal": {
       "type": "object",
       "properties": {
