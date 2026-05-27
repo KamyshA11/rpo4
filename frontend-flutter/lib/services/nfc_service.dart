@@ -12,10 +12,12 @@ class NfcService {
   
   final String _nfcListPath = r'C:\Users\Admin\rpo4\rpo4\libs\libnfc\build\utils\nfc-list.exe';
   final String _nfcMfClassicPath = r'C:\Users\Admin\rpo4\rpo4\libs\libnfc\build\utils\nfc-mfclassic.exe';
-  final String _comPort = 'COM14';
+  
+  final String _comPort = 'COM11';
   String? _cachedComPort;
 
   Future<String?> _findComPort() async {
+    _log.info('Using COM port: $_comPort');
     return _comPort;
   }
 
@@ -54,74 +56,7 @@ class NfcService {
     return null;
   }
 
-  // ---- Чтение всего дампа карты во временный файл ----
-  Future<File?> _dumpCardToFile(String uid, String key, String comPort) async {
-    final tempDir = await getTemporaryDirectory();
-    final dumpFile = File('${tempDir.path}/card_dump_${DateTime.now().millisecondsSinceEpoch}.bin');
-    
-    final result = await Process.run(
-      _nfcMfClassicPath,
-      ['r', uid, '4', key],
-      environment: {'LIBNFC_DEVICE': 'pn532_uart:$comPort'},
-      runInShell: true,
-    );
-    
-    if (result.exitCode != 0) {
-      _log.warning('Dump failed: ${result.stderr}');
-      return null;
-    }
-    
-    // Утилита создаёт файл с именем ключа (FFFFFFFFFFFF) в текущей папке
-    // Нужно найти этот файл и переместить
-    final generatedFile = File('FFFFFFFFFFF'); // имя файла по умолчанию
-    
-    // Проверяем разные возможные имена
-    final possiblePaths = [
-      'FFFFFFFFFFFF',
-      'FFFFFFFFFFF',
-      '${Directory.current.path}/FFFFFFFFFFFF',
-      '${Directory.current.path}/FFFFFFFFFFF',
-    ];
-    
-    File? sourceFile;
-    for (final path in possiblePaths) {
-      final f = File(path);
-      if (await f.exists()) {
-        sourceFile = f;
-        break;
-      }
-    }
-    
-    if (sourceFile == null) {
-      _log.warning('Dump file not found');
-      return null;
-    }
-    
-    // Копируем во временный файл
-    await sourceFile.copy(dumpFile.path);
-    await sourceFile.delete(); // удаляем оригинал
-    
-    return dumpFile;
-  }
-
-  // ---- Запись дампа на карту ----
-  Future<bool> _writeDumpToCard(String uid, String key, String comPort, File dumpFile) async {
-    final result = await Process.run(
-      _nfcMfClassicPath,
-      ['w', uid, '4', key, dumpFile.path],
-      environment: {'LIBNFC_DEVICE': 'pn532_uart:$comPort'},
-      runInShell: true,
-    );
-    
-    if (result.exitCode != 0) {
-      _log.warning('Write failed: ${result.stderr}');
-      return false;
-    }
-    
-    return true;
-  }
-
-  // ---- Чтение баланса из дампа ----
+  // ---- Чтение баланса через дамп-файл (используем r a u) ----
   Future<int?> readBalance(String uid, {int block = 4, String key = 'FFFFFFFFFFFF'}) async {
     _log.info('Reading balance from card UID: $uid');
     
@@ -132,34 +67,36 @@ class NfcService {
     }
     
     try {
-      // 1. Создаём дамп карты
-      final dumpFile = await _dumpCardToFile(uid, key, _cachedComPort!);
-      if (dumpFile == null) {
-        _log.warning('Failed to create card dump');
+      // Используем команду r a u для создания дампа
+      final tempFile = File('${(await getTemporaryDirectory()).path}/card_dump_${DateTime.now().millisecondsSinceEpoch}.bin');
+      
+      final result = await Process.run(
+        _nfcMfClassicPath,
+        ['r', 'a', 'u', tempFile.path],
+        environment: {'LIBNFC_DEVICE': 'pn532_uart:$_cachedComPort'},
+        runInShell: true,
+      );
+      
+      if (result.exitCode != 0) {
+        _log.warning('Read dump failed: ${result.stderr}');
         return null;
       }
       
-      // 2. Читаем файл
-      final bytes = await dumpFile.readAsBytes();
-      
-      // 3. Удаляем временный файл
-      await dumpFile.delete();
-      
-      // 4. Проверяем размер
-      if (bytes.length < (block + 1) * 16) {
-        _log.warning('Dump file too small: ${bytes.length} bytes');
+      if (!await tempFile.exists()) {
+        _log.warning('Dump file not created');
         return null;
       }
       
-      // 5. Берём нужный блок (смещение block * 16)
+      final bytes = await tempFile.readAsBytes();
+      await tempFile.delete();
+      
       final start = block * 16;
-      final balanceBytes = bytes.sublist(start, start + 4);
+      if (bytes.length < start + 4) return null;
       
-      // 6. Парсим little-endian
-      final balance = balanceBytes[0] | 
-                      (balanceBytes[1] << 8) | 
-                      (balanceBytes[2] << 16) | 
-                      (balanceBytes[3] << 24);
+      final balance = bytes[start] | 
+                      (bytes[start + 1] << 8) | 
+                      (bytes[start + 2] << 16) | 
+                      (bytes[start + 3] << 24);
       
       _log.info('✅ Balance read: $balance RUB');
       return balance;
@@ -169,7 +106,7 @@ class NfcService {
     }
   }
 
-  // ---- Запись баланса на карту (через дамп) ----
+  // ---- Запись баланса (используем команду w a u) ----
   Future<bool> writeBalance(String uid, int newBalance, {int block = 4, String key = 'FFFFFFFFFFFF'}) async {
     _log.info('Writing balance $newBalance to card UID: $uid');
     
@@ -180,46 +117,58 @@ class NfcService {
     }
     
     try {
-      // 1. Создаём дамп карты
-      final dumpFile = await _dumpCardToFile(uid, key, _cachedComPort!);
-      if (dumpFile == null) {
-        _log.warning('Failed to create card dump');
+      final tempFile = File('${(await getTemporaryDirectory()).path}/card_dump_${DateTime.now().millisecondsSinceEpoch}.bin');
+      
+      // 1. Читаем текущий дамп карты
+      final readResult = await Process.run(
+        _nfcMfClassicPath,
+        ['r', 'a', 'u', tempFile.path],
+        environment: {'LIBNFC_DEVICE': 'pn532_uart:$_cachedComPort'},
+        runInShell: true,
+      );
+      
+      if (readResult.exitCode != 0) {
+        _log.warning('Failed to read card dump: ${readResult.stderr}');
         return false;
       }
       
-      // 2. Читаем текущий дамп
-      final bytes = await dumpFile.readAsBytes();
+      if (!await tempFile.exists()) {
+        _log.warning('Dump file not created');
+        return false;
+      }
       
-      // 3. Обновляем баланс в нужном блоке
+      // 2. Модифицируем баланс в дампе
+      final bytes = await tempFile.readAsBytes();
       final start = block * 16;
       bytes[start] = newBalance & 0xFF;
       bytes[start + 1] = (newBalance >> 8) & 0xFF;
       bytes[start + 2] = (newBalance >> 16) & 0xFF;
       bytes[start + 3] = (newBalance >> 24) & 0xFF;
+      await tempFile.writeAsBytes(bytes);
       
-      // 4. Сохраняем изменённый дамп
-      await dumpFile.writeAsBytes(bytes);
+      // 3. Записываем дамп обратно на карту (команда w a u)
+      final writeResult = await Process.run(
+        _nfcMfClassicPath,
+        ['w', 'a', 'u', tempFile.path],
+        environment: {'LIBNFC_DEVICE': 'pn532_uart:$_cachedComPort'},
+        runInShell: true,
+      );
       
-      // 5. Записываем дамп обратно на карту
-      final success = await _writeDumpToCard(uid, key, _cachedComPort!, dumpFile);
+      await tempFile.delete();
       
-      // 6. Удаляем временный файл
-      await dumpFile.delete();
-      
-      if (success) {
+      if (writeResult.exitCode == 0) {
         _log.info('✅ Balance written successfully: $newBalance RUB');
+        return true;
       } else {
-        _log.warning('Failed to write balance to card');
+        _log.warning('Write failed: ${writeResult.stderr}');
+        return false;
       }
-      
-      return success;
     } catch (e) {
       _log.severe('Error writing balance: $e');
       return false;
     }
   }
 
-  // ---- Парсинг UID из вывода nfc-list ----
   String? _parseUid(String output) {
     final lines = output.split('\n');
     for (final line in lines) {
