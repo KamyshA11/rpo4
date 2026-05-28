@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import '../services/nfc_service.dart';
-import '../services/storage_service.dart';
 import '../services/api_service.dart';
 import 'package:logging/logging.dart';
 
 class RechargeProvider extends ChangeNotifier {
   final Logger _log = Logger('RechargeProvider');
   final NfcService nfc = NfcService();
-  final StorageService storage = StorageService();
-  final ApiService api = ApiService();  // <-- добавить
+  final ApiService api = ApiService();
   final TextEditingController amountController = TextEditingController();
   
   bool isProcessing = false;
@@ -33,10 +31,6 @@ class RechargeProvider extends ChangeNotifier {
     }
     _log.info(message);
     notifyListeners();
-  }
-
-  Future<void> init() async {
-    await storage.init();
   }
 
   Future<void> recharge(BuildContext context) async {
@@ -70,6 +64,16 @@ class RechargeProvider extends ChangeNotifier {
       _currentCardUid = uid;
       _updateStatus('✅ Карта обнаружена! UID: $uid', progressValue: 40);
       await Future.delayed(const Duration(milliseconds: 500));
+      
+      // ПРОВЕРКА: есть ли карта в системе
+      _updateStatus('🔍 Проверка карты в системе...', progressValue: 45);
+      final cardExists = await api.cardExists(uid);
+      
+      if (!cardExists) {
+        _updateStatus('❌ Карта не зарегистрирована в системе', progressValue: 0);
+        _setError('Карта не зарегистрирована в системе. Обратитесь в администрацию.');
+        return;
+      }
       
       _updateStatus('📖 Чтение текущего баланса...', progressValue: 50);
       
@@ -116,17 +120,6 @@ class RechargeProvider extends ChangeNotifier {
       
       _currentBalance = newBalance;
       
-      // Сохраняем транзакцию в локальное хранилище
-      _updateStatus('💾 Сохранение транзакции...', progressValue: 90);
-      await storage.addTransaction(
-        cardUid: uid,
-        amount: amount,
-        type: 'recharge',
-        success: true,
-        balanceAfter: newBalance,
-      );
-      await storage.updateBalance(uid, newBalance);
-      
       // ОТПРАВКА НА БЭКЕНД (логирование пополнения)
       _updateStatus('📡 Отправка данных на сервер...', progressValue: 95);
       try {
@@ -134,7 +127,6 @@ class RechargeProvider extends ChangeNotifier {
         _log.info('Recharge sent to backend');
       } catch (e) {
         _log.warning('Failed to send to backend: $e');
-        // Не прерываем операцию
       }
       
       _updateStatus('✅ Пополнение успешно завершено!', progressValue: 100);

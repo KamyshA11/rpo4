@@ -7,49 +7,16 @@ import 'screens/terminal_screen.dart';
 import 'screens/recharge_screen.dart';
 import 'screens/balance_screen.dart';
 
-import 'dart:io';
-
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Тестовый запрос через обычный HTTP клиент (без Dio)
-  try {
-    final client = HttpClient();
-    client.badCertificateCallback = (cert, host, port) => true; // только для теста!
-    final request = await client.getUrl(Uri.parse('https://localhost:8888/api/v1/cards/by-uid/1DFC7D05'));
-    final response = await request.close();
-    print('✅ Test response status: ${response.statusCode}');
-  } catch (e) {
-    print('❌ Test error: $e');
-  }
-
-  final paymentProvider = PaymentProvider();
-  await paymentProvider.init();
-  
-  final rechargeProvider = RechargeProvider();
-  await rechargeProvider.init();
-  
-  final balanceProvider = BalanceProvider();
-  await balanceProvider.init();
-  
-  runApp(MyApp(
-    paymentProvider: paymentProvider,
-    rechargeProvider: rechargeProvider,
-    balanceProvider: balanceProvider,
-  ));
+void main() {
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  final PaymentProvider paymentProvider;
-  final RechargeProvider rechargeProvider;
-  final BalanceProvider balanceProvider;
-  
-  const MyApp({
-    super.key,
-    required this.paymentProvider,
-    required this.rechargeProvider,
-    required this.balanceProvider,
-  });
+  MyApp({super.key});
+
+  final paymentProvider = PaymentProvider();
+  final rechargeProvider = RechargeProvider();
+  final balanceProvider = BalanceProvider();
 
   @override
   Widget build(BuildContext context) {
@@ -96,19 +63,12 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 30),
               const Text(
                 'Transport Terminal',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               const SizedBox(height: 8),
               const Text(
                 'Система оплаты проезда',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white70,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.white70),
               ),
               const SizedBox(height: 40),
               Expanded(
@@ -116,7 +76,6 @@ class HomeScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     children: [
-                      // Кнопка Оплата
                       _buildMenuButton(
                         context,
                         title: 'Оплата проезда',
@@ -129,7 +88,6 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Кнопка Пополнение
                       _buildMenuButton(
                         context,
                         title: 'Пополнение карты',
@@ -142,7 +100,6 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Кнопка Баланс
                       _buildMenuButton(
                         context,
                         title: 'Баланс карты',
@@ -211,19 +168,12 @@ class HomeScreen extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white70,
-                        ),
+                        style: const TextStyle(fontSize: 12, color: Colors.white70),
                       ),
                     ],
                   ),

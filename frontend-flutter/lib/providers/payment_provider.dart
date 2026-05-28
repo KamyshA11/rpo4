@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import '../services/nfc_service.dart';
-import '../services/storage_service.dart';
 import '../services/api_service.dart';
 import 'package:logging/logging.dart';
 
 class PaymentProvider extends ChangeNotifier {
   final Logger _log = Logger('PaymentProvider');
   final NfcService nfc = NfcService();
-  final StorageService storage = StorageService();
   final ApiService api = ApiService();
   
   bool isProcessing = false;
@@ -35,7 +33,7 @@ class PaymentProvider extends ChangeNotifier {
   }
 
   Future<void> init() async {
-    await storage.init();
+    // Инициализация не требуется, JSON удалён
   }
 
   Future<void> pay(BuildContext context) async {
@@ -132,18 +130,7 @@ class PaymentProvider extends ChangeNotifier {
         _log.info('Transaction saved to backend');
       } catch (e) {
         _log.warning('Failed to save transaction: $e');
-        // Не прерываем операцию, деньги уже списаны с карты
       }
-      
-      // Локальное сохранение (для истории в приложении)
-      await storage.addTransaction(
-        cardUid: uid,
-        amount: 50,
-        type: 'payment',
-        success: true,
-        balanceAfter: newBalance,
-      );
-      await storage.updateBalance(uid, newBalance);
       
       _updateStatus('✅ Оплата успешно завершена!', progressValue: 100);
       _setSuccess('Оплата успешно завершена!\nНовый баланс: $newBalance ₽');

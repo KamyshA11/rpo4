@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import '../services/nfc_service.dart';
-import '../services/storage_service.dart';
 import '../services/api_service.dart';
 import 'package:logging/logging.dart';
 
 class BalanceProvider extends ChangeNotifier {
   final Logger _log = Logger('BalanceProvider');
   final NfcService nfc = NfcService();
-  final StorageService storage = StorageService();
-  final ApiService api = ApiService();  // <-- добавить
+  final ApiService api = ApiService();
   
   bool isChecking = false;
   int _balance = 0;
@@ -18,10 +16,6 @@ class BalanceProvider extends ChangeNotifier {
   int get balance => _balance;
   String? get cardUid => _cardUid;
   String get statusMessage => _statusMessage;
-
-  Future<void> init() async {
-    await storage.init();
-  }
 
   Future<void> checkBalance(BuildContext context) async {
     if (isChecking) return;
@@ -48,7 +42,23 @@ class BalanceProvider extends ChangeNotifier {
       }
       
       _cardUid = uid;
-      _statusMessage = '📖 Чтение баланса...';
+      
+      // ПРОВЕРКА: есть ли карта в системе
+      _statusMessage = '🔍 Проверка карты в системе...';
+      notifyListeners();
+      
+      final cardExists = await api.cardExists(uid);
+      if (!cardExists) {
+        _statusMessage = '❌ Карта не зарегистрирована в системе';
+        _balance = 0;
+        notifyListeners();
+        await Future.delayed(const Duration(seconds: 2));
+        _statusMessage = '';
+        notifyListeners();
+        return;
+      }
+      
+      _statusMessage = '📖 Чтение баланса с карты...';
       notifyListeners();
       
       final balance = await nfc.readBalance(uid);
@@ -67,10 +77,7 @@ class BalanceProvider extends ChangeNotifier {
       _statusMessage = '✅ Баланс успешно считан!';
       notifyListeners();
       
-      // Сохраняем в локальное хранилище
-      await storage.updateBalance(uid, balance);
-      
-      // ОТПРАВКА НА БЭКЕНД (синхронизация баланса)
+      // Синхронизация с бэкендом (опционально)
       try {
         await api.syncBalance(uid, balance);
         _log.info('Balance synced with backend');
