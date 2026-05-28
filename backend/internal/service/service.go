@@ -67,22 +67,22 @@ func (s *Service) GetCardByID(id int64) (*models.Card, error) {
 }
 
 func (s *Service) CreateCard(c *models.Card) error {
-    // Проверяем ключ
-    _, err := s.repo.GetKeyByID(c.KeyID)
-    if err != nil {
-        return errors.New("ключ с указанным key_id не найден")
-    }
-    
-    // Создаём карту (с проверкой на дубликат внутри репозитория)
-    return s.repo.CreateCard(c)
+	// Проверяем ключ
+	_, err := s.repo.GetKeyByID(c.KeyID)
+	if err != nil {
+		return errors.New("ключ с указанным key_id не найден")
+	}
+
+	// Создаём карту (с проверкой на дубликат внутри репозитория)
+	return s.repo.CreateCard(c)
 }
 
 func (s *Service) UpdateCard(c *models.Card) error {
-    _, err := s.repo.GetKeyByID(c.KeyID)
-    if err != nil {
-        return errors.New("ключ с указанным key_id не найден")
-    }
-    return s.repo.UpdateCard(c)
+	_, err := s.repo.GetKeyByID(c.KeyID)
+	if err != nil {
+		return errors.New("ключ с указанным key_id не найден")
+	}
+	return s.repo.UpdateCard(c)
 }
 
 func (s *Service) DeleteCard(id int64) error {
@@ -125,13 +125,8 @@ func (s *Service) CreateTransaction(tx *models.Transaction) error {
 	if card.Blocked {
 		return errors.New("карта заблокирована")
 	}
-	if card.Balance < tx.Amount {
-		return errors.New("недостаточно средств")
-	}
-	card.Balance -= tx.Amount
-	if err := s.repo.UpdateCard(card); err != nil {
-		return err
-	}
+	// Убираем автоматическое списание баланса!
+	// Баланс будет синхронизироваться отдельно через SyncBalance
 	tx.CreatedAt = time.Now()
 	return s.repo.CreateTransaction(tx)
 }

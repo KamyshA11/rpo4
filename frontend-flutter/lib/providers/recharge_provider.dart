@@ -118,17 +118,27 @@ class RechargeProvider extends ChangeNotifier {
         return;
       }
       
+      // После успешной записи на карту
       _currentBalance = newBalance;
-      
+
       // ОТПРАВКА НА БЭКЕНД (логирование пополнения)
       _updateStatus('📡 Отправка данных на сервер...', progressValue: 95);
       try {
-        await api.rechargeCard(uid, amount);
-        _log.info('Recharge sent to backend');
+          await api.rechargeCard(uid, amount, 1);
+          _log.info('Recharge sent to backend');
       } catch (e) {
-        _log.warning('Failed to send to backend: $e');
+          _log.warning('Failed to send to backend: $e');
       }
-      
+
+      // СИНХРОНИЗАЦИЯ БАЛАНСА С БЭКЕНДОМ
+      _updateStatus('🔄 Синхронизация баланса...', progressValue: 98);
+      try {
+          await api.syncBalance(uid, newBalance);
+          _log.info('Balance synced with backend');
+      } catch (e) {
+          _log.warning('Failed to sync balance: $e');
+      }
+
       _updateStatus('✅ Пополнение успешно завершено!', progressValue: 100);
       _setSuccess('Пополнение успешно завершено!\nНовый баланс: $newBalance ₽');
       amountController.clear();

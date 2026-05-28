@@ -605,15 +605,30 @@ func (h *Handler) AuthorizeTransaction(c *gin.Context) {
 		return
 	}
 
-	err := h.svc.AuthorizeTransaction(req.CardNumber, req.Amount, req.TerminalID)
+	card, err := h.svc.GetCardByNumber(req.CardNumber)
 	if err != nil {
-		c.JSON(http.StatusForbidden, models.AuthResponse{
-			Status: "declined",
-			Reason: err.Error(),
-		})
+		c.JSON(http.StatusNotFound, gin.H{"error": "card not found"})
 		return
 	}
 
+	if card.Blocked {
+		c.JSON(http.StatusForbidden, gin.H{"error": "card blocked"})
+		return
+	}
+
+	// Убираем UpdateBalance!
+	// Только создаём транзакцию
+	tx := &models.Transaction{
+		Amount:     req.Amount,
+		CardID:     card.ID,
+		TerminalID: req.TerminalID,
+		CreatedAt:  time.Now(),
+	}
+
+	if err := h.svc.CreateTransaction(tx); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	c.JSON(http.StatusOK, models.AuthResponse{
 		Status: "approved",
 	})
@@ -1018,7 +1033,7 @@ func (h *Handler) RegisterCard(c *gin.Context) {
 // @Router /cards/debit [post]
 func (h *Handler) DebitCard(c *gin.Context) {
 	var req struct {
-		Number     string `json:"number"` // ← было uid
+		Number     string `json:"number"`
 		Amount     int64  `json:"amount"`
 		TerminalID int64  `json:"terminal_id"`
 	}
@@ -1038,8 +1053,9 @@ func (h *Handler) DebitCard(c *gin.Context) {
 		return
 	}
 
+	// Создаём транзакцию с ОТРИЦАТЕЛЬНОЙ суммой для списания
 	tx := &models.Transaction{
-		Amount:     req.Amount,
+		Amount:     -req.Amount, // ← минус для списания
 		CardID:     card.ID,
 		TerminalID: req.TerminalID,
 		CreatedAt:  time.Now(),
@@ -1056,8 +1072,9 @@ func (h *Handler) DebitCard(c *gin.Context) {
 // @Router /cards/recharge [post]
 func (h *Handler) RechargeCard(c *gin.Context) {
 	var req struct {
-		Number string `json:"number"` // ← было uid
-		Amount int64  `json:"amount"`
+		Number     string `json:"number"` // ← было uid
+		Amount     int64  `json:"amount"`
+		TerminalID int64  `json:"terminal_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -1073,7 +1090,7 @@ func (h *Handler) RechargeCard(c *gin.Context) {
 	tx := &models.Transaction{
 		Amount:     req.Amount,
 		CardID:     card.ID,
-		TerminalID: 0,
+		TerminalID: req.TerminalID,
 		CreatedAt:  time.Now(),
 	}
 

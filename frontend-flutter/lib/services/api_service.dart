@@ -108,10 +108,11 @@ class ApiService {
     });
   }
 
-  Future<void> rechargeCard(String number, int amount) async {
+  Future<void> rechargeCard(String number, int amount, int terminalId) async {
     await post('/cards/recharge', {
       'number': number.toUpperCase(),
       'amount': amount,
+      'terminal_id': terminalId,
     });
   }
 

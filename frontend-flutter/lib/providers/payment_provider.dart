@@ -121,17 +121,27 @@ class PaymentProvider extends ChangeNotifier {
         return;
       }
       
+      // После успешной записи на карту
       _currentBalance = newBalance;
-      
-      // СОХРАНЕНИЕ ТРАНЗАКЦИИ В БД (через API)
+
+      // СОХРАНЕНИЕ ТРАНЗАКЦИИ В БД
       _updateStatus('💾 Сохранение транзакции...', progressValue: 90);
       try {
-        await api.pay(uid, 50, 1);
-        _log.info('Transaction saved to backend');
+          await api.pay(uid, 50, 1);
+          _log.info('Transaction saved to backend');
       } catch (e) {
-        _log.warning('Failed to save transaction: $e');
+          _log.warning('Failed to save transaction: $e');
       }
-      
+
+      // СИНХРОНИЗАЦИЯ БАЛАНСА С БЭКЕНДОМ
+      _updateStatus('🔄 Синхронизация баланса...', progressValue: 95);
+      try {
+          await api.syncBalance(uid, newBalance);
+          _log.info('Balance synced with backend');
+      } catch (e) {
+          _log.warning('Failed to sync balance: $e');
+      }
+
       _updateStatus('✅ Оплата успешно завершена!', progressValue: 100);
       _setSuccess('Оплата успешно завершена!\nНовый баланс: $newBalance ₽');
       
