@@ -46,10 +46,20 @@ class BalanceProvider extends ChangeNotifier {
       // ПРОВЕРКА: есть ли карта в системе
       _statusMessage = '🔍 Проверка карты в системе...';
       notifyListeners();
-      
-      final cardExists = await api.cardExists(uid);
-      if (!cardExists) {
+
+      final card = await api.getCardByUid(uid);
+      if (card == null) {
         _statusMessage = '❌ Карта не зарегистрирована в системе';
+        _balance = 0;
+        notifyListeners();
+        await Future.delayed(const Duration(seconds: 2));
+        _statusMessage = '';
+        notifyListeners();
+        return;
+      }
+
+      if (card['blocked'] == true) {
+        _statusMessage = '❌ Карта заблокирована';
         _balance = 0;
         notifyListeners();
         await Future.delayed(const Duration(seconds: 2));

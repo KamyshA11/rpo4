@@ -65,13 +65,19 @@ class RechargeProvider extends ChangeNotifier {
       _updateStatus('✅ Карта обнаружена! UID: $uid', progressValue: 40);
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // ПРОВЕРКА: есть ли карта в системе
+      // ПРОВЕРКА: есть ли карта в системе и не заблокирована ли она
       _updateStatus('🔍 Проверка карты в системе...', progressValue: 45);
-      final cardExists = await api.cardExists(uid);
-      
-      if (!cardExists) {
+      final card = await api.getCardByUid(uid);
+
+      if (card == null) {
         _updateStatus('❌ Карта не зарегистрирована в системе', progressValue: 0);
         _setError('Карта не зарегистрирована в системе. Обратитесь в администрацию.');
+        return;
+      }
+
+      if (card['blocked'] == true) {
+        _updateStatus('❌ Карта заблокирована', progressValue: 0);
+        _setError('Карта заблокирована. Обратитесь в администрацию.');
         return;
       }
       

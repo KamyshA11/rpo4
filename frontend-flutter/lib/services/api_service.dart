@@ -88,6 +88,12 @@ class ApiService {
     return result != null;
   }
 
+  Future<bool> isCardBlocked(String uid) async {
+  final result = await get('/cards/by-uid/${uid.toUpperCase()}');
+    if (result == null) return true; // если карты нет, считаем её заблокированной
+    return result['blocked'] == true;
+  }
+
   Future<Map<String, dynamic>?> getCardByUid(String uid) async {
     return await get('/cards/by-uid/${uid.toUpperCase()}');
   }
