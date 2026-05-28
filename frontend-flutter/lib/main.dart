@@ -7,9 +7,22 @@ import 'screens/terminal_screen.dart';
 import 'screens/recharge_screen.dart';
 import 'screens/balance_screen.dart';
 
+import 'dart:io';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // Тестовый запрос через обычный HTTP клиент (без Dio)
+  try {
+    final client = HttpClient();
+    client.badCertificateCallback = (cert, host, port) => true; // только для теста!
+    final request = await client.getUrl(Uri.parse('https://localhost:8888/api/v1/cards/by-uid/1DFC7D05'));
+    final response = await request.close();
+    print('✅ Test response status: ${response.statusCode}');
+  } catch (e) {
+    print('❌ Test error: $e');
+  }
+
   final paymentProvider = PaymentProvider();
   await paymentProvider.init();
   
