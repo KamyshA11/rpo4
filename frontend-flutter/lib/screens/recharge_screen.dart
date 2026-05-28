@@ -18,7 +18,7 @@ class RechargeScreen extends StatelessWidget {
             colors: [
               Colors.green.shade800,
               Colors.green.shade500,
-              Colors.teal.shade300,
+              Colors.teal.shade400,
             ],
           ),
         ),
@@ -33,205 +33,167 @@ class RechargeScreen extends StatelessWidget {
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                     const Spacer(),
                     const Text(
-                      'Пополнение карты',
+                      'Пополнение',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
                     ),
                     const Spacer(),
-                    const SizedBox(width: 48),
+                    const SizedBox(width: 40),
                   ],
                 ),
               ),
               
-              // Баланс карты
+              // Баланс
               Container(
-                margin: const EdgeInsets.all(20),
-                padding: const EdgeInsets.all(24),
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(30),
-                  border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Текущий баланс',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                      ),
+                    Row(
+                      children: [
+                        Icon(Icons.account_balance_wallet, color: Colors.white, size: 24),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Текущий баланс:',
+                          style: TextStyle(fontSize: 16, color: Colors.white),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 10),
                     Text(
                       '${provider.balance} ₽',
-                      style: const TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                   ],
                 ),
               ),
               
-              // Поле ввода суммы
+              // Поле ввода
               Container(
-                margin: const EdgeInsets.symmetric(horizontal: 20),
+                margin: const EdgeInsets.symmetric(horizontal: 16),
                 child: TextField(
                   controller: provider.amountController,
                   keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 18, color: Colors.white),
+                  style: const TextStyle(fontSize: 16, color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Сумма пополнения (₽)',
+                    labelText: 'Сумма (₽)',
                     labelStyle: const TextStyle(color: Colors.white70),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.5),
+                    fillColor: Colors.white.withOpacity(0.2),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide(color: Colors.white.withOpacity(0.5)),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(color: Colors.white, width: 2),
                     ),
-                    prefixIcon: const Icon(Icons.currency_ruble, color: Colors.white),
+                    prefixIcon: const Icon(Icons.currency_ruble, color: Colors.white, size: 20),
                   ),
                 ),
               ),
               
               const Spacer(),
               
-              // Индикатор процесса
+              // Статус процесса
               if (provider.statusMessage.isNotEmpty)
                 Container(
-                  margin: const EdgeInsets.all(20),
-                  padding: const EdgeInsets.all(20),
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Column(
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          if (provider.statusMessage.contains('✅'))
-                            const Icon(Icons.check_circle, color: Colors.green, size: 28)
-                          else if (provider.statusMessage.contains('❌'))
-                            const Icon(Icons.error, color: Colors.red, size: 28)
-                          else if (provider.statusMessage.contains('💳') || 
-                                   provider.statusMessage.contains('📖') || 
-                                   provider.statusMessage.contains('✍️'))
-                            const SizedBox(
-                              width: 28,
-                              height: 28,
-                              child: CircularProgressIndicator(strokeWidth: 2.5),
-                            )
-                          else
-                            const Icon(Icons.info, color: Colors.blue, size: 28),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              provider.statusMessage,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
+                      if (provider.statusMessage.contains('успешно'))
+                        Icon(Icons.check_circle, color: Colors.green, size: 20)
+                      else if (provider.statusMessage.contains('Ошибка') || provider.statusMessage.contains('ошибка'))
+                        Icon(Icons.error, color: Colors.red, size: 20)
+                      else if (provider.statusMessage.contains('Поиск') || 
+                               provider.statusMessage.contains('Приложите') || 
+                               provider.statusMessage.contains('Чтение') ||
+                               provider.statusMessage.contains('Запись'))
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Icon(Icons.info, color: Colors.blue, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          provider.statusMessage,
+                          style: const TextStyle(fontSize: 13),
+                        ),
                       ),
-                      if (provider.progress > 0 && provider.progress < 100) ...[
-                        const SizedBox(height: 16),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: LinearProgressIndicator(
-                            value: provider.progress / 100,
-                            minHeight: 8,
-                            backgroundColor: Colors.grey.shade200,
-                            color: Colors.green,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${provider.progress.toInt()}%',
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
                     ],
                   ),
                 ),
               
-              // Кнопка пополнения
+              // Кнопка
               Padding(
-                padding: const EdgeInsets.all(20),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  child: ElevatedButton(
-                    onPressed: provider.isProcessing ? null : () => provider.recharge(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.green.shade800,
-                      minimumSize: const Size(double.infinity, 60),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 5,
+                padding: const EdgeInsets.all(16),
+                child: ElevatedButton.icon(
+                  onPressed: provider.isProcessing ? null : () => provider.recharge(context),
+                  icon: Icon(Icons.add_card, size: 20),
+                  label: const Text('Пополнить'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.green.shade700,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
                     ),
-                    child: provider.isProcessing
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.green,
-                            ),
-                          )
-                        : const Text(
-                            'Пополнить',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
                   ),
                 ),
               ),
               
-              // Сообщение об ошибке/успехе
+              // Сообщение
               if (provider.lastMessage != null)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.only(bottom: 16),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    margin: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: (provider.lastSuccess ? Colors.green : Colors.red).withOpacity(0.9),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      provider.lastMessage!,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          provider.lastSuccess ? Icons.check_circle : Icons.error,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            provider.lastMessage!,
+                            style: const TextStyle(color: Colors.white, fontSize: 12),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

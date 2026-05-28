@@ -44,50 +44,50 @@ class RechargeProvider extends ChangeNotifier {
     
     isProcessing = true;
     lastMessage = null;
-    _updateStatus('🔄 Инициализация...', progressValue: 0);
+    _updateStatus('Инициализация...', progressValue: 0);
     notifyListeners();
 
     try {
-      _updateStatus('🔍 Поиск NFC устройства...', progressValue: 10);
+      _updateStatus('Поиск NFC устройства...', progressValue: 10);
       await Future.delayed(const Duration(milliseconds: 500));
       
-      _updateStatus('💳 Приложите карту к считывателю...', progressValue: 20);
+      _updateStatus('Приложите карту к считывателю...', progressValue: 20);
       
       final uid = await nfc.detectCardUID(maxAttempts: 20);
       
       if (uid == null) {
-        _updateStatus('❌ Карта не обнаружена', progressValue: 0);
+        _updateStatus('Ошибка: карта не обнаружена', progressValue: 0);
         _setError('Карта не обнаружена');
         return;
       }
       
       _currentCardUid = uid;
-      _updateStatus('✅ Карта обнаружена! UID: $uid', progressValue: 40);
+      _updateStatus('Карта обнаружена (UID: $uid)', progressValue: 40);
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // ПРОВЕРКА: есть ли карта в системе и не заблокирована ли она
-      _updateStatus('🔍 Проверка карты в системе...', progressValue: 45);
+      // Проверка карты в системе
+      _updateStatus('Проверка карты в системе...', progressValue: 45);
       final card = await api.getCardByUid(uid);
 
       if (card == null) {
-        _updateStatus('❌ Карта не зарегистрирована в системе', progressValue: 0);
+        _updateStatus('Ошибка: карта не зарегистрирована', progressValue: 0);
         _setError('Карта не зарегистрирована в системе. Обратитесь в администрацию.');
         return;
       }
 
       if (card['blocked'] == true) {
-        _updateStatus('❌ Карта заблокирована', progressValue: 0);
+        _updateStatus('Ошибка: карта заблокирована', progressValue: 0);
         _setError('Карта заблокирована. Обратитесь в администрацию.');
         return;
       }
       
-      _updateStatus('📖 Чтение текущего баланса...', progressValue: 50);
+      _updateStatus('Чтение текущего баланса...', progressValue: 50);
       
       int? currentBalance;
       int readAttempts = 0;
       while (currentBalance == null && readAttempts < 3) {
         readAttempts++;
-        _updateStatus('📖 Попытка чтения $readAttempts/3...', progressValue: 50 + (readAttempts * 5));
+        _updateStatus('Попытка чтения $readAttempts/3...', progressValue: 50 + (readAttempts * 5));
         currentBalance = await nfc.readBalance(uid);
         if (currentBalance == null && readAttempts < 3) {
           await Future.delayed(const Duration(milliseconds: 500));
@@ -95,23 +95,23 @@ class RechargeProvider extends ChangeNotifier {
       }
       
       if (currentBalance == null) {
-        _updateStatus('❌ Не удалось прочитать баланс', progressValue: 0);
+        _updateStatus('Ошибка: не удалось прочитать баланс', progressValue: 0);
         _setError('Не удалось прочитать баланс');
         return;
       }
       
       _currentBalance = currentBalance;
-      _updateStatus('💰 Текущий баланс: $currentBalance ₽', progressValue: 65);
+      _updateStatus('Текущий баланс: $currentBalance ₽', progressValue: 65);
       await Future.delayed(const Duration(milliseconds: 500));
       
       final newBalance = currentBalance + amount;
-      _updateStatus('✍️ Запись нового баланса ($newBalance ₽) на карту...', progressValue: 75);
+      _updateStatus('Запись нового баланса ($newBalance ₽) на карту...', progressValue: 75);
       
       bool writeSuccess = false;
       int writeAttempts = 0;
       while (!writeSuccess && writeAttempts < 3) {
         writeAttempts++;
-        _updateStatus('✍️ Попытка записи $writeAttempts/3...', progressValue: 75 + (writeAttempts * 5));
+        _updateStatus('Попытка записи $writeAttempts/3...', progressValue: 75 + (writeAttempts * 5));
         writeSuccess = await nfc.writeBalance(uid, newBalance);
         if (!writeSuccess && writeAttempts < 3) {
           await Future.delayed(const Duration(milliseconds: 500));
@@ -119,16 +119,15 @@ class RechargeProvider extends ChangeNotifier {
       }
       
       if (!writeSuccess) {
-        _updateStatus('❌ Не удалось записать данные на карту', progressValue: 0);
+        _updateStatus('Ошибка: не удалось записать баланс', progressValue: 0);
         _setError('Не удалось записать новый баланс');
         return;
       }
       
-      // После успешной записи на карту
       _currentBalance = newBalance;
 
-      // ОТПРАВКА НА БЭКЕНД (логирование пополнения)
-      _updateStatus('📡 Отправка данных на сервер...', progressValue: 95);
+      // Отправка на бэкенд
+      _updateStatus('Отправка данных на сервер...', progressValue: 95);
       try {
           await api.rechargeCard(uid, amount, 1);
           _log.info('Recharge sent to backend');
@@ -136,8 +135,8 @@ class RechargeProvider extends ChangeNotifier {
           _log.warning('Failed to send to backend: $e');
       }
 
-      // СИНХРОНИЗАЦИЯ БАЛАНСА С БЭКЕНДОМ
-      _updateStatus('🔄 Синхронизация баланса...', progressValue: 98);
+      // Синхронизация баланса
+      _updateStatus('Синхронизация баланса...', progressValue: 98);
       try {
           await api.syncBalance(uid, newBalance);
           _log.info('Balance synced with backend');
@@ -145,7 +144,7 @@ class RechargeProvider extends ChangeNotifier {
           _log.warning('Failed to sync balance: $e');
       }
 
-      _updateStatus('✅ Пополнение успешно завершено!', progressValue: 100);
+      _updateStatus('Пополнение успешно завершено', progressValue: 100);
       _setSuccess('Пополнение успешно завершено!\nНовый баланс: $newBalance ₽');
       amountController.clear();
       
@@ -153,7 +152,7 @@ class RechargeProvider extends ChangeNotifier {
       _updateStatus('', progressValue: 0);
       
     } catch (e) {
-      _updateStatus('❌ Ошибка: $e', progressValue: 0);
+      _updateStatus('Ошибка: $e', progressValue: 0);
       _setError('Ошибка: $e');
     } finally {
       isProcessing = false;
