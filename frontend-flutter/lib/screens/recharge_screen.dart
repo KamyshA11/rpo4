@@ -2,12 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/recharge_provider.dart';
 
-class RechargeScreen extends StatelessWidget {
+class RechargeScreen extends StatefulWidget {
   const RechargeScreen({super.key});
+
+  @override
+  State<RechargeScreen> createState() => _RechargeScreenState();
+}
+
+class _RechargeScreenState extends State<RechargeScreen> {
+  final TextEditingController _amountController = TextEditingController();
+  
+  // Список быстрых сумм для пополнения
+  final List<int> quickAmounts = [50, 100, 200, 500, 1000, 2500];
+  
+  @override
+  void initState() {
+    super.initState();
+    // При создании экрана очищаем поле
+    _amountController.clear();
+  }
+  
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<RechargeProvider>();
+    
+    // Синхронизируем контроллер с провайдером
+    if (provider.amountController.text != _amountController.text) {
+      _amountController.text = provider.amountController.text;
+    }
     
     return Scaffold(
       body: Container(
@@ -31,7 +59,11 @@ class RechargeScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        // При уходе с экрана очищаем поле
+                        provider.amountController.clear();
+                        Navigator.pop(context);
+                      },
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
@@ -80,16 +112,21 @@ class RechargeScreen extends StatelessWidget {
                 ),
               ),
               
-              // Поле ввода
+              // Поле ввода суммы
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
                 child: TextField(
-                  controller: provider.amountController,
+                  controller: _amountController,
                   keyboardType: TextInputType.number,
                   style: const TextStyle(fontSize: 16, color: Colors.white),
+                  onChanged: (value) {
+                    provider.amountController.text = value;
+                  },
                   decoration: InputDecoration(
-                    labelText: 'Сумма (₽)',
+                    labelText: 'Сумма пополнения (₽)',
                     labelStyle: const TextStyle(color: Colors.white70),
+                    hintText: 'Введите сумму или выберите ниже',
+                    hintStyle: const TextStyle(color: Colors.white54),
                     filled: true,
                     fillColor: Colors.white.withOpacity(0.2),
                     border: OutlineInputBorder(
@@ -106,6 +143,60 @@ class RechargeScreen extends StatelessWidget {
                     ),
                     prefixIcon: const Icon(Icons.currency_ruble, color: Colors.white, size: 20),
                   ),
+                ),
+              ),
+              
+              // Быстрые кнопки
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Быстрое пополнение:',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Используем Wrap с фиксированной шириной
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: quickAmounts.map((amount) {
+                        // Вычисляем ширину кнопки в зависимости от экрана
+                        final screenWidth = MediaQuery.of(context).size.width;
+                        final buttonWidth = (screenWidth - 64) / 3; // 3 кнопки в строке с отступами
+                        
+                        return SizedBox(
+                          width: buttonWidth,
+                          child: ElevatedButton(
+                            onPressed: provider.isProcessing ? null : () {
+                              _amountController.text = amount.toString();
+                              provider.amountController.text = amount.toString();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white.withOpacity(0.2),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide(color: Colors.white.withOpacity(0.5)),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                            ),
+                            child: Text(
+                              '+$amount ₽',
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
               ),
               
@@ -148,11 +239,18 @@ class RechargeScreen extends StatelessWidget {
                   ),
                 ),
               
-              // Кнопка
+              // Кнопка пополнения
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: ElevatedButton.icon(
-                  onPressed: provider.isProcessing ? null : () => provider.recharge(context),
+                  onPressed: provider.isProcessing ? null : () async {
+                    await provider.recharge(context);
+                    // После успешной операции очищаем поле
+                    if (provider.lastSuccess == true) {
+                      _amountController.clear();
+                      provider.amountController.clear();
+                    }
+                  },
                   icon: Icon(Icons.add_card, size: 20),
                   label: const Text('Пополнить'),
                   style: ElevatedButton.styleFrom(
