@@ -13,7 +13,7 @@ class NfcService {
   final String _nfcListPath = r'C:\Users\Admin\rpo4\rpo4\libs\libnfc\build\utils\nfc-list.exe';
   final String _nfcMfClassicPath = r'C:\Users\Admin\rpo4\rpo4\libs\libnfc\build\utils\nfc-mfclassic.exe';
   
-  final String _comPort = 'COM11';
+  final String _comPort = 'COM14';
   String? _cachedComPort;
 
   Future<String?> _findComPort() async {

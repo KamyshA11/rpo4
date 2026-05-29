@@ -32,10 +32,6 @@ class PaymentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> init() async {
-    // Инициализация не требуется
-  }
-
   Future<void> pay(BuildContext context) async {
     if (isProcessing) return;
     
